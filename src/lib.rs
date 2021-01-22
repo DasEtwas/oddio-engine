@@ -18,7 +18,6 @@ impl<T> Engine<T>
 where
     T: Frame + Copy,
 {
-    /// Apply dynamic gain to `signal`
     pub fn new(
         initial_rpm: f32,
         rpm_smoothing_interval: f32,
