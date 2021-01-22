@@ -1,0 +1,8 @@
+[package]
+name = "oddio_engine"
+version = "0.1.0"
+authors = ["DasEtwas"]
+edition = "2018"
+
+[dependencies]
+oddio = { git = "https://github.com/Ralith/oddio", rev = "f6214f03768f8cc91c47693ade4d5d6f4fba2f91" }
