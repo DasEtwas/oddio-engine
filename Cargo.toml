@@ -1,5 +1,5 @@
 [package]
-name = "oddio_engine"
+name = "oddio-engine"
 version = "0.1.0"
 authors = ["DasEtwas"]
 edition = "2018"
