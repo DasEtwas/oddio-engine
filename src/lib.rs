@@ -133,13 +133,8 @@ impl<T: Frame + Copy> Signal for Engine<T> {
         let mut lower_index = 0;
         let mut higher_index = 0;
 
+        let mut rpm = self.rpm();
         for x in out {
-            let rpm = self.rpm();
-            self.time_since_changed
-                .set(self.time_since_changed.get() + interval);
-
-            self.advance_loops(rpm, interval);
-
             *x = if rpm <= self.minimum_rpm {
                 self.sample(0)
             } else if rpm >= self.maximum_rpm {
@@ -171,6 +166,7 @@ impl<T: Frame + Copy> Signal for Engine<T> {
                             lower_rpm = last_rpm;
                             lower_index = higher_index - 1;
                             higher_rpm = loop_rpm;
+
                             break;
                         }
                         last_rpm = loop_rpm;
@@ -186,6 +182,12 @@ impl<T: Frame + Copy> Signal for Engine<T> {
                     &scale(&self.sample(higher_index), higher_gain),
                 )
             };
+
+            rpm = self.rpm();
+            self.time_since_changed
+                .set(self.time_since_changed.get() + interval);
+
+            self.advance_loops(rpm, interval);
         }
     }
 
