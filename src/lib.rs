@@ -1,4 +1,4 @@
-use oddio::{Controlled, Frame, Frames, Sample, Seek, Signal};
+use oddio::{Controlled, Frame, Frames, Sample, Signal};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
@@ -94,7 +94,7 @@ where
             lerp(&samples[i % len], &samples[(i + 1) % len], fract)
         } else if index > len / 2 - crossfade_duration {
             let crossfade =
-                (index - len / 2 + crossfade_duration) as f32 / *crossfade_duration as f32;
+                (index - (len / 2 - crossfade_duration)) as f32 / *crossfade_duration as f32;
 
             let i0 = index + len / 2;
             let i1 = index + crossfade_duration + len / 2;
@@ -192,12 +192,6 @@ impl<T: Frame + Copy> Signal for Engine<T> {
 
     fn remaining(&self) -> f32 {
         f32::INFINITY
-    }
-}
-
-impl<T: Frame + Copy> Seek for Engine<T> {
-    fn seek_to(&self, t: f32) {
-        self.advance_loops(self.rpm(), -t);
     }
 }
 
