@@ -231,8 +231,8 @@ impl<'a, T> EngineControl<'a, T> {
     }
 
     /// Adjust the RPM
-    pub fn set_rpm(&mut self, factor: f32) {
-        self.0.shared.store(factor.to_bits(), Ordering::Relaxed);
+    pub fn set_rpm(&mut self, rpm: f32) {
+        self.0.shared.store(rpm.to_bits(), Ordering::Relaxed);
     }
 
     /// Returns the crank offset of the engine in revolutions
