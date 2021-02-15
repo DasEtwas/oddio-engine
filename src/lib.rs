@@ -9,6 +9,7 @@ pub struct Engine<T> {
     prev_rpm: Cell<f32>,
     next_rpm: Cell<f32>,
     time_since_changed: Cell<f32>,
+    crank_offset: Cell<f64>,
     rpm_smoothing_interval: f32,
     minimum_rpm: f32,
     maximum_rpm: f32,
@@ -18,8 +19,15 @@ impl<T> Engine<T>
 where
     T: Frame + Copy,
 {
+    /// Takes a list of `(loop_rpm, crossfade_duration, samples)` for each engine sound loop of a certain RPM.
+    ///
+    /// `crank_offset` can be used to specify a revolutions count previously obtained by [EngineControl::get_crank_offset](`EngineControl::get_crank_offset`)
+    ///
+    /// Each loop should be a multiple of a crank revolution's duration. For example, a loop at 1200 RPM should be a multiple of
+    /// `1 / (1200RPM / 60s/min) = 0.05s/R (seconds per revolution)`
     pub fn new(
         initial_rpm: f32,
+        crank_offset: f64,
         rpm_smoothing_interval: f32,
         loops: impl Iterator<Item = (f32, f32, Arc<Frames<T>>)>,
     ) -> Self {
@@ -33,7 +41,13 @@ where
                     "Crossfade exceeds maximum size"
                 );
 
-                (loop_rpm, crossfade_duration, Cell::new(0.0), samples)
+                (
+                    loop_rpm,
+                    crossfade_duration,
+                    // is overridden by Self::advance
+                    Cell::new(0.0),
+                    samples,
+                )
             })
             .collect::<Vec<_>>();
 
@@ -50,6 +64,7 @@ where
             prev_rpm: Cell::new(initial_rpm),
             next_rpm: Cell::new(initial_rpm),
             time_since_changed: Cell::new(1e10),
+            crank_offset: Cell::new(crank_offset),
             rpm_smoothing_interval,
             minimum_rpm,
             maximum_rpm,
@@ -64,16 +79,20 @@ where
         self.prev_rpm.get() + progress * diff
     }
 
+    /// Advances the engine's crank and sets sampling positions of every loop sound accordingly
     #[inline]
-    fn advance_loops(&self, rpm: f32, interval: f32) {
-        let a = interval * rpm;
+    fn advance(&self, rpm: f32, interval: f32) {
+        let crank_offset = self.crank_offset.get() + (rpm / 60.0 * interval) as f64;
 
         for (loop_rpm, crossfade_duration, position, samples) in self.loops.iter() {
             let samples_len = samples.len();
-            let sampling_position = (position.get() + samples.rate() as f32 / loop_rpm * a)
-                .rem_euclid((samples_len - crossfade_duration) as f32);
+            let sampling_position = (crank_offset * 60.0 / *loop_rpm as f64 * samples.rate() as f64)
+                .rem_euclid((samples_len - crossfade_duration) as f64)
+                as f32;
             position.set(sampling_position);
         }
+
+        self.crank_offset.set(crank_offset);
     }
 
     /// Advances the `index`-th loop's position and samples it
@@ -186,7 +205,7 @@ impl<T: Frame + Copy> Signal for Engine<T> {
             self.time_since_changed
                 .set(self.time_since_changed.get() + interval);
 
-            self.advance_loops(rpm, interval);
+            self.advance(rpm, interval);
         }
     }
 
@@ -214,6 +233,11 @@ impl<'a, T> EngineControl<'a, T> {
     /// Adjust the RPM
     pub fn set_rpm(&mut self, factor: f32) {
         self.0.shared.store(factor.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Returns the crank offset of the engine in revolutions
+    pub fn get_crank_offset(&self) -> f64 {
+        self.0.crank_offset.get()
     }
 }
 
